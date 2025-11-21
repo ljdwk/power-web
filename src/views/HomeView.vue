@@ -109,11 +109,7 @@
       <!-- Chart -->
       <div v-if="chartData.length > 0" class="card fade-in-up">
         <h2 class="card-title">📈 功率曲线图</h2>
-        <div ref="chartRef" class="chart-container">
-          <div v-if="loading" class="loading-overlay">
-            <div class="loading-spinner"></div>
-          </div>
-        </div>
+        <div ref="chartRef" class="chart-container"></div>
       </div>
 
       <!-- Empty state when no data -->
@@ -152,6 +148,7 @@ import {
 import * as echarts from 'echarts'
 import { usePowerStore } from '@/stores/powerStore'
 import { formatTimestamp, getQuickRange } from '@/utils/timeUtils'
+import type { Statistics, ChartPoint } from '@/types'
 
 // 为window添加类型声明
 declare global {
@@ -175,15 +172,20 @@ const endTime = ref(new Date())
 
 // Data and UI state
 const loading = ref(false)
-const statistics = ref(null)
-const chartData = ref([])
+const statistics = ref<Statistics | null>(null)
+const chartData = ref<ChartPoint[]>([])
 const chartRef = ref<HTMLElement>()
 let chartInstance: any = null // 存储图表实例
 
 // Initialize
 onMounted(async () => {
-  await loadStations()
-  selectQuickRange('today')
+  try {
+    await loadStations()
+    selectQuickRange('today')
+  } catch (error) {
+    console.error('组件初始化失败:', error)
+    showToast('页面初始化失败，请刷新重试')
+  }
 })
 
 // 组件卸载时清理资源
@@ -202,13 +204,10 @@ onUnmounted(() => {
 const loadStations = async () => {
   try {
     await powerStore.loadStations()
-    // Convert to Vant Picker format: array of objects with text and value
-    stationColumns.value = powerStore.stations.map(s => ({
-      text: s.stationId,
-      value: s.stationId
-    }))
+    // Convert to Vant Picker format: array of strings
+    stationColumns.value = powerStore.stations.map(s => s.stationId)
     if (stationColumns.value.length > 0) {
-      selectedStation.value = stationColumns.value[0].value
+      selectedStation.value = stationColumns.value[0]
     }
   } catch (error) {
     showToast('加载电站列表失败')
@@ -216,7 +215,7 @@ const loadStations = async () => {
 }
 
 const onStationConfirm = (selectedOptions: any) => {
-  selectedStation.value = selectedOptions[0].value
+  selectedStation.value = selectedOptions[0]
   showStationPicker.value = false
 }
 
@@ -297,7 +296,7 @@ const queryPowerData = async () => {
     }
 
     await nextTick()
-    renderChart()
+    await renderChart()
 
     showToast('查询成功')
   } catch (error) {
@@ -308,7 +307,7 @@ const queryPowerData = async () => {
   }
 }
 
-const renderChart = () => {
+const renderChart = async () => {
   if (!chartRef.value) {
     console.error('图表容器不存在')
     return
@@ -322,6 +321,9 @@ const renderChart = () => {
     }
     return
   }
+
+  // 确保DOM元素已经渲染
+  await nextTick()
 
   const originalDataCount = chartData.value.length
   const startTime = performance.now()
@@ -543,7 +545,7 @@ const renderChart = () => {
 
   // 如果数据量很大，显示性能提示
   if (originalDataCount > 5000) {
-    showToast(`数据量较大(${originalDataCount}点)，已优化显示`, 'info')
+    showToast(`数据量较大(${originalDataCount}点)，已优化显示`)
   }
 
   // Enhanced responsive behavior - 避免重复绑定事件
