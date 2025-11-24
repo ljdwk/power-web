@@ -162,7 +162,7 @@ const powerStore = usePowerStore()
 // Station selection
 const showStationPicker = ref(false)
 const selectedStation = ref('')
-const stationColumns = ref<string[]>([])
+const stationColumns = ref<Array<{ text: string; value: string }>>([])
 
 // Time selection
 const startTimeInput = ref('')
@@ -204,10 +204,13 @@ onUnmounted(() => {
 const loadStations = async () => {
   try {
     await powerStore.loadStations()
-    // Convert to Vant Picker format: array of strings
-    stationColumns.value = powerStore.stations.map(s => s.stationId)
+    // Convert to Vant Picker format: array of PickerOption objects
+    stationColumns.value = powerStore.stations.map(s => ({
+      text: s.stationId,
+      value: s.stationId
+    }))
     if (stationColumns.value.length > 0) {
-      selectedStation.value = stationColumns.value[0]
+      selectedStation.value = stationColumns.value[0].value
     }
   } catch (error) {
     showToast('加载电站列表失败')
@@ -215,7 +218,7 @@ const loadStations = async () => {
 }
 
 const onStationConfirm = (selectedOptions: any) => {
-  selectedStation.value = selectedOptions[0]
+  selectedStation.value = selectedOptions[0]?.value || selectedOptions[0]
   showStationPicker.value = false
 }
 
