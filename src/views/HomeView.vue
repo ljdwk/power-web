@@ -217,8 +217,8 @@ const loadStations = async () => {
   }
 }
 
-const onStationConfirm = (selectedOptions: any) => {
-  selectedStation.value = selectedOptions[0]?.value || selectedOptions[0]
+const onStationConfirm = ({ selectedOptions }: { selectedOptions: any[] }) => {
+  selectedStation.value = selectedOptions[0]?.value || selectedOptions[0]?.text
   showStationPicker.value = false
 }
 
